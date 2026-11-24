@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبار أمن أنظمة التشغيل — محاضرات 1–3</title>
+<style>
+  :root{
+    --bg:#0d1024;
+    --bg2:#171b38;
+    --surface:#1c2142;
+    --surface2:#252b54;
+    --line:#343a6b;
+    --ink:#edf0ff;
+    --muted:#a8adcf;
+    --pink:#ff6fa5;
+    --yellow:#ffd35c;
+    --mint:#3ddcc4;
+    --purple:#a78bfa;
+    --blue:#5aa9ff;
+    --green:#38d9a9;
+    --red:#ff6f8f;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:"Trebuchet MS","Segoe UI",Tahoma,Arial,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+  }
+  .bg-motion{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:linear-gradient(120deg,#0d1024,#2b1642,#102a45,#11142e,#2a1740,#0d1024);
+    background-size:320% 320%;
+    animation:bgPan 22s ease-in-out infinite
+  }
+  .bg-motion::after{
+    content:"";position:absolute;inset:-30px;
+    background-image:radial-gradient(rgba(200,210,255,.10) 1.5px,transparent 1.5px);
+    background-size:26px 26px;
+    animation:dotDrift 14s linear infinite
+  }
+  @keyframes bgPan{
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+  @keyframes dotDrift{
+    from{transform:translate3d(0,0,0)}
+    to{transform:translate3d(26px,26px,0)}
+  }
+  .bg-blob{
+    position:fixed;z-index:0;pointer-events:none;border-radius:50%;filter:blur(50px);opacity:.5;
+    will-change:transform
+  }
+  .bg-blob.b1{
+    width:52vmax;height:52vmax;left:-16vmax;top:-20vmax;
+    background:radial-gradient(circle,rgba(255,111,165,.9),rgba(255,111,165,0) 68%);
+    animation:drift1 24s ease-in-out infinite alternate
+  }
+  .bg-blob.b2{
+    width:48vmax;height:48vmax;right:-14vmax;top:8vh;
+    background:radial-gradient(circle,rgba(90,169,255,.8),rgba(90,169,255,0) 68%);
+    animation:drift2 29s ease-in-out infinite alternate
+  }
+  .bg-blob.b3{
+    width:56vmax;height:56vmax;right:-10vmax;bottom:-26vmax;
+    background:radial-gradient(circle,rgba(167,139,250,.85),rgba(167,139,250,0) 68%);
+    animation:drift3 34s ease-in-out infinite alternate
+  }
+  @keyframes drift1{
+    0%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(14vw,9vh,0) scale(1.15)}
+    100%{transform:translate3d(-5vw,16vh,0) scale(.94)}
+  }
+  @keyframes drift2{
+    0%{transform:translate3d(0,0,0) scale(1.05)}
+    50%{transform:translate3d(-16vw,12vh,0) scale(.9)}
+    100%{transform:translate3d(7vw,-9vh,0) scale(1.2)}
+  }
+  @keyframes drift3{
+    0%{transform:translate3d(0,0,0) scale(.95)}
+    50%{transform:translate3d(-12vw,-14vh,0) scale(1.18)}
+    100%{transform:translate3d(9vw,-5vh,0) scale(1)}
+  }
+  .wrap{max-width:940px;margin:0 auto;padding:34px 18px calc(26px + env(safe-area-inset-bottom));position:relative;z-index:1}
+  .glass{
+    background:linear-gradient(180deg,#1e2348,#1a1e3e);
+    border:2px solid var(--line);
+    border-radius:26px;
+    box-shadow:0 10px 0 rgba(4,6,18,.45),0 18px 40px rgba(0,0,0,.35);
+    animation:pop .35s ease both;
+  }
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes bob{0%,100%{transform:rotate(-2deg) translateY(0)}50%{transform:rotate(-2deg) translateY(-4px)}}
+  .deco{display:flex;justify-content:center;gap:9px;margin-bottom:14px}
+  .deco i{width:13px;height:13px;border-radius:4px;transform:rotate(22deg);box-shadow:0 3px 0 rgba(0,0,0,.35)}
+  .deco i:nth-child(1){background:var(--pink)}
+  .deco i:nth-child(2){background:var(--yellow)}
+  .deco i:nth-child(3){background:var(--mint)}
+  .deco i:nth-child(4){background:var(--purple)}
+  .deco i:nth-child(5){background:var(--blue)}
+  header{text-align:center;padding:32px 22px}
+  .kicker{
+    display:inline-block;font-size:12px;letter-spacing:.8px;font-weight:900;color:#4a3300;
+    background:var(--yellow);border-radius:999px;padding:7px 16px;margin-bottom:16px;
+    box-shadow:0 4px 0 #a87900;animation:bob 3s ease-in-out infinite
+  }
+  h1{
+    margin:0 0 10px;font-size:clamp(28px,6vw,48px);line-height:1.25;font-weight:900;letter-spacing:-.5px;
+    background:linear-gradient(90deg,#ff8fbb,#ffd35c 48%,#7cc4ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent
+  }
+  .sub{margin:0;color:var(--muted);line-height:1.9;font-size:15px}
+  .lectures{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:20px}
+  .chip{font-size:13px;font-weight:800;padding:7px 14px;border-radius:999px;box-shadow:0 4px 0 rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08)}
+  .chip:nth-child(1){background:rgba(255,111,165,.16);color:#ffb3cd}
+  .chip:nth-child(2){background:rgba(61,220,196,.14);color:#7cebd9}
+  .chip:nth-child(3){background:rgba(167,139,250,.18);color:#c9b6ff}
+  .start-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
+  button{
+    font-family:inherit;cursor:pointer;border:0;color:#fff;font-weight:900;
+    border-radius:16px;padding:14px 22px;font-size:15px;
+    box-shadow:0 6px 0 rgba(2,4,14,.6);
+    transition:transform .12s,box-shadow .12s;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent
+  }
+  button:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
+  button:hover{transform:translateY(-2px);box-shadow:0 8px 0 rgba(2,4,14,.55)}
+  button:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(2,4,14,.6)}
+  .primary{background:linear-gradient(180deg,#ff8fbb,#ff5f97)}
+  .secondary{background:linear-gradient(180deg,#a78bfa,#7c5cf0)}
+  .ghost{background:var(--surface2);color:var(--ink);border:2px solid #3a4176;box-shadow:0 4px 0 #121631}
+  .ghost:hover{background:#2e3565}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:0 4px 0 rgba(2,4,14,.5)}
+  .hidden{display:none!important}
+
+  .bar-wrap{padding:15px 20px}
+  .bar-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);font-weight:800;flex-wrap:wrap}
+  .bar-top b{color:var(--ink);font-size:16px}
+  .track{height:15px;background:#121630;border:2px solid var(--line);border-radius:99px;overflow:hidden;margin-top:10px;box-shadow:inset 0 2px 5px rgba(0,0,0,.4)}
+  .fill{height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--yellow),var(--mint),var(--purple));border-radius:99px;transition:width .35s}
+  .timer{font-variant-numeric:tabular-nums;color:var(--yellow);background:rgba(255,211,92,.14);padding:5px 12px;border-radius:999px}
+
+  .card{padding:24px;margin-top:16px;background:linear-gradient(180deg,#1f2449,#1b2044)}
+  .badge{display:inline-block;font-size:12px;color:#4a3300;background:var(--yellow);border-radius:999px;padding:5px 13px;font-weight:900;margin-bottom:14px;box-shadow:0 3px 0 #a87900;transform:rotate(-1deg)}
+  .q-en{dir:ltr;text-align:left;font-size:19px;line-height:1.65;font-weight:800;color:#f2f5ff;margin:0 0 12px;background:var(--surface2);border:2px solid #394171;border-radius:16px;padding:14px 16px;overflow-wrap:anywhere}
+  .q-ar{color:#ffe6b0;line-height:1.95;font-size:15px;margin:0 0 18px;background:rgba(255,211,92,.12);border:2px dashed rgba(255,211,92,.45);border-radius:16px;padding:11px 14px}
+  .tag{font-size:11px;font-weight:900;color:var(--yellow);background:rgba(255,211,92,.2);padding:3px 10px;border-radius:999px;display:inline-block;margin-bottom:6px}
+  .options{display:grid;gap:11px}
+  .opt{
+    width:100%;text-align:right;background:#202549;border:2px solid var(--line);color:var(--ink);
+    border-radius:18px;padding:13px 15px;display:flex;gap:12px;align-items:flex-start;
+    box-shadow:0 4px 0 #141831;position:relative;transition:.15s
+  }
+  .opt:hover{transform:translateY(-2px) rotate(-.3deg);border-color:#5a619b;box-shadow:0 6px 0 #141831}
+  .opt .letter{
+    flex:0 0 34px;height:34px;border-radius:12px;display:grid;place-items:center;
+    background:rgba(167,139,250,.16);font-size:14px;font-weight:900;color:#c9b6ff;margin-top:2px
+  }
+  .opt:nth-of-type(1) .letter{background:rgba(255,111,165,.18);color:#ff9ec2}
+  .opt:nth-of-type(2) .letter{background:rgba(61,220,196,.16);color:#6ee7d7}
+  .opt:nth-of-type(3) .letter{background:rgba(255,211,92,.16);color:#ffd35c}
+  .opt:nth-of-type(4) .letter{background:rgba(90,169,255,.16);color:#8cc4ff}
+  .opt .txt{flex:1;min-width:0}
+  .opt .en{dir:ltr;text-align:left;font-size:14.5px;line-height:1.55;display:block;font-weight:700;color:#f2f5ff;overflow-wrap:anywhere}
+  .opt .ar{display:block;color:var(--muted);font-size:13px;line-height:1.8;margin-top:5px}
+  .opt.selected{border-color:var(--purple);background:rgba(167,139,250,.16);box-shadow:0 4px 0 #4a3a8f;transform:translateY(-1px) rotate(-.3deg)}
+  .opt.selected::after{content:"✓";position:absolute;left:16px;top:11px;color:#d5c7ff;font-weight:900;font-size:19px}
+  .opt.selected .letter{background:var(--purple);color:#17142f;transform:rotate(-6deg)}
+
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .nav-right,.nav-left{display:flex;gap:9px;flex-wrap:wrap}
+  .grid{display:flex;flex-wrap:wrap;gap:7px;padding:14px 18px}
+  .grid button{
+    width:36px;height:36px;padding:0;border-radius:12px;background:var(--surface2);color:#b7bce0;
+    border:2px solid #394171;box-shadow:0 3px 0 #151934;font-size:13px;font-weight:900
+  }
+  .grid button.answered{background:rgba(61,220,196,.17);color:#6ee7d7;border-color:#2d7d73;box-shadow:0 3px 0 #163c38}
+  .grid button.current{background:var(--purple);color:#17142f;border-color:#8b6ef0;box-shadow:0 3px 0 #5b47a8;transform:scale(1.08)}
+  .hint{font-size:12px;font-weight:700;color:#9aa0c8;background:rgba(30,35,72,.85);padding:8px 14px;border-radius:12px;display:inline-block;margin-top:12px}
+
+  .result{text-align:center;padding:30px 22px}
+  .score-circle{
+    width:160px;height:160px;margin:0 auto 16px;border-radius:50%;display:grid;place-items:center;
+    background:conic-gradient(var(--purple) 0deg,rgba(167,139,250,.13) 0deg);
+    box-shadow:0 8px 0 rgba(2,4,14,.5);position:relative
+  }
+  .score-inner{
+    width:132px;height:132px;border-radius:50%;background:#1b2044;display:grid;place-items:center;line-height:1.3;
+    box-shadow:inset 0 4px 12px rgba(0,0,0,.4)
+  }
+  .score-num{font-size:40px;font-weight:900;color:var(--ink)}
+  .score-label{font-size:12px;color:var(--muted);font-weight:800}
+  .msg{font-size:22px;font-weight:900;color:#c9b6ff;margin:14px 0 4px}
+  .stats{display:flex;justify-content:center;gap:9px;color:var(--muted);font-size:13px;font-weight:800;margin-top:14px;flex-wrap:wrap}
+  .stats span{background:var(--surface2);padding:8px 14px;border-radius:999px}
+  .stats b{color:var(--ink);font-size:15px}
+  .review{text-align:right;margin-top:26px;display:grid;gap:12px}
+  .rev{border:2px solid var(--line);border-right:7px solid var(--green);border-radius:18px;padding:15px 16px;background:#202549;box-shadow:0 4px 0 #151934}
+  .rev.is-no{border-right-color:var(--red)}
+  .rev-head{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:800;color:var(--muted);background:var(--surface2);padding:7px 11px;border-radius:10px;margin-bottom:10px}
+  .ok{color:var(--green);font-weight:900}
+  .no{color:var(--red);font-weight:900}
+  .rev .q-en{font-size:15px;border:0;padding:10px 12px;margin-bottom:7px;background:#272e5b}
+  .rev .q-ar{font-size:13px;border:0;padding:10px 12px;margin-bottom:10px}
+  .ans{font-size:13px;line-height:2;color:var(--muted)}
+  .ans span{dir:ltr;text-align:left;display:inline-block;color:#fff;font-weight:700;background:#2b3160;padding:2px 8px;border-radius:8px;overflow-wrap:anywhere}
+  .why{margin-top:10px;padding:11px 13px;border-radius:14px;background:rgba(167,139,250,.13);border:2px dashed rgba(167,139,250,.4);font-size:13px;line-height:1.9;color:#ded4ff;font-weight:700}
+  .why .en{dir:ltr;text-align:left;display:block;font-size:12.5px;color:#b0a5df;margin-top:4px;font-weight:400;overflow-wrap:anywhere}
+  footer{text-align:center;color:#9aa0c8;font-size:13px;font-weight:800;line-height:2;padding:26px 10px 4px}
+  footer b{color:#ff9ec2}
+  @media(max-width:700px){
+    .bg-motion{background-size:260% 260%}
+    .bg-blob{filter:blur(28px);opacity:.38}
+    .wrap{padding:16px 10px calc(20px + env(safe-area-inset-bottom))}
+    header{padding:22px 14px}
+    h1{font-size:clamp(25px,7vw,36px)}
+    .sub{font-size:14px;line-height:1.8}
+    .lectures{gap:6px;margin-top:14px}
+    .chip{font-size:12px;padding:6px 10px}
+    .start-actions{margin-top:20px}
+    .start-actions button{width:100%;font-size:14px}
+    .bar-wrap{padding:12px 13px}
+    .bar-top{font-size:12px}
+    .card{padding:15px;margin-top:12px}
+    .q-en{font-size:16px;padding:12px;line-height:1.6}
+    .q-ar{font-size:14px;padding:10px}
+    .opt{padding:11px;gap:9px}
+    .opt .en{font-size:13.5px}
+    .opt .ar{font-size:12.5px}
+    .opt .letter{flex-basis:31px;height:31px;font-size:13px}
+    .opt.selected::after{left:11px;top:9px;font-size:17px}
+    .grid{gap:5px;padding:12px}
+    .grid button{width:32px;height:32px;font-size:12px}
+    .nav{gap:8px;margin-top:14px}
+    .nav button{font-size:13px;padding:11px 13px;flex:1}
+    .nav-right,.nav-left{width:100%;flex:1 1 100%}
+    .hint{font-size:11px;padding:7px 10px}
+    .result{padding:22px 14px}
+    .score-circle{width:132px;height:132px}
+    .score-inner{width:108px;height:108px}
+    .score-num{font-size:31px}
+    .msg{font-size:18px}
+    .stats{font-size:12px;gap:6px}
+    .stats span{padding:6px 10px}
+    .review{margin-top:20px}
+    .rev{padding:12px}
+    .rev-head{font-size:11px;gap:6px}
+    .rev .q-en{font-size:14px}
+    .rev .q-ar,.ans,.why{font-size:12.5px}
+    footer{font-size:12px}
+  }
+  @media(max-width:380px){
+    .wrap{padding:12px 8px calc(18px + env(safe-area-inset-bottom))}
+    .card{padding:12px}
+    .q-en{font-size:15px}
+    .opt .en{font-size:13px}
+    .grid button{width:30px;height:30px}
+    button{padding:12px 14px;font-size:14px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="bg-motion"></div>
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="bg-blob b3"></div>
+<div class="wrap">
+
+  <header class="glass" id="startScreen">
+    <div class="deco"><i></i><i></i><i></i><i></i><i></i></div>
+    <span class="kicker">OS SECURITY · MID-TERM PRACTICE</span>
+    <h1>اختبار أمن أنظمة التشغيل</h1>
+    <p class="sub"><span id="totalCount">0</span> سؤالاً من محاضرات 1–3 · ترتيب الأسئلة والإجابات عشوائي في كل محاولة.<br>النص الإنجليزي مع ترجمة عربية لكل سؤال وإجابة وشرح.</p>
+    <div class="lectures">
+      <span class="chip">1 · أساسيات الأمان</span>
+      <span class="chip">2 · نماذج التحكم بالوصول</span>
+      <span class="chip">3 · التهديدات والهجمات</span>
+    </div>
+    <div class="start-actions">
+      <button class="primary" onclick="startQuiz(false)">ابدأ الاختبار الكامل</button>
+      <button class="secondary" onclick="startQuiz(true)">تجربة سريعة (3 أسئلة)</button>
+    </div>
+    <p class="sub" id="bestLine" style="margin-top:16px;font-size:13px"></p>
+  </header>
+
+  <section id="quizScreen" class="hidden">
+    <div class="glass bar-wrap">
+      <div class="bar-top">
+        <span>السؤال <b id="qNum">1</b> من <b id="qTotal">29</b></span>
+        <span class="timer">الوقت: <b id="timer">00:00</b></span>
+        <span id="lectureName"></span>
+      </div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+
+    <div class="glass card" id="questionCard"></div>
+
+    <div class="glass grid" id="qGrid"></div>
+
+    <div class="nav">
+      <div class="nav-right">
+        <button class="ghost" id="prevBtn" onclick="move(-1)">السابق ←</button>
+        <button class="ghost" id="nextBtn" onclick="move(1)">التالي →</button>
+      </div>
+      <div class="nav-left">
+        <button class="ghost" onclick="quitQuiz()">العودة للرئيسية</button>
+        <button class="primary" id="finishBtn" onclick="finishQuiz()">إنهاء الاختبار وعرض النتيجة</button>
+      </div>
+    </div>
+    <p class="hint">اختصارات: اضغط 1–4 لاختيار الإجابة، و← / → للتنقل.</p>
+  </section>
+
+  <section id="resultScreen" class="hidden">
+    <div class="glass result">
+      <div class="score-circle" id="circle"><div class="score-inner"><div><div class="score-num" id="scoreNum">0%</div><div class="score-label">النتيجة</div></div></div></div>
+      <h2 class="msg" id="resultMsg"></h2>
+      <p class="sub" id="resultHint"></p>
+      <div class="stats">
+        <span>الإجابات الصحيحة: <b id="correctCount">0</b></span>
+        <span>الخاطئة: <b id="wrongCount">0</b></span>
+        <span>أفضل نتيجة: <b id="bestScore">—</b></span>
+      </div>
+      <div class="start-actions">
+        <button class="primary" onclick="startQuiz(false)">إعادة الاختبار الكامل</button>
+        <button class="ghost" onclick="showStart()">الرئيسية</button>
+      </div>
+      <div class="review" id="review"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span dir="ltr">Prepared for study by <b>Hassan Ali</b> &amp; <b>Mustafa Rabbah</b></span><br>
+    OS Security — Mid-Term Practice MCQs
+  </footer>
+</div>
+
+<script>
+const questions = [
+{lecture:1,q:"Why is the operating system usually the first target for attackers?",qa:"لماذا يُعد نظام التشغيل عادةً أول هدف للمهاجمين؟",options:[["It is the cheapest part of the system to replace","إنه الجزء الأرخص استبدالاً في النظام"],["It only runs antivirus software","إنه يشغّل برامج مكافحة الفيروسات فقط"],["It manages hardware, applications, accounts, and sensitive data","إنه يدير الأجهزة والتطبيقات والحسابات والبيانات الحساسة"],["It cannot be updated once installed","لا يمكن تحديثه بعد التثبيت"]],answer:2,why:"Controlling the OS gives an attacker control over everything it manages.",whyAr:"السيطرة على نظام التشغيل تمنح المهاجم التحكم في كل ما يديره."},
+{lecture:1,q:'A junior developer is given full admin rights "just in case," even though their task only needs read access to one folder. Which principle is being violated?',qa:"مطوّر مبتدئ يحصل على صلاحيات مدير كاملة «احتياطاً»، رغم أن مهمته تحتاج قراءة مجلد واحد فقط. أي مبدأ تم خرقه؟",options:[["Defense in Depth","الدفاع المتدرج"],["Least Privilege","أقل الصلاحيات"],["Secure Defaults","الإعدادات الآمنة افتراضياً"],["Multi-Factor Authentication","المصادقة متعددة العوامل"]],answer:1,why:"Least Privilege means granting only the minimum permissions needed for the task.",whyAr:"مبدأ أقل الصلاحيات يعني منح الحد الأدنى من الصلاحيات اللازمة للمهمة فقط."},
+{lecture:1,q:"Which of the following is NOT listed as a typical Defense-in-Depth layer?",qa:"أي مما يلي لا يُعد طبقة نموذجية من طبقات الدفاع المتدرج؟",options:[["Firewalls","جدران الحماية"],["Antivirus software","برامج مكافحة الفيروسات"],["Hiring more security staff","توظيف المزيد من موظفي الأمن"],["User awareness training","تدريب المستخدمين على التوعية"]],answer:2,why:"The lecture's layers are authentication, antivirus, firewalls, file permissions, patches, and user training — staffing isn't one of them.",whyAr:"طبقات المحاضرة هي المصادقة، ومكافحة الفيروسات، وجدران الحماية، وصلاحيات الملفات، والتحديثات، وتدريب المستخدمين — ولا تشمل زيادة عدد الموظفين."},
+{lecture:1,q:'A fresh OS installation that is "Secure by Default" should do which of the following?',qa:"تثبيت جديد لنظام تشغيل «آمن افتراضياً» يجب أن يقوم بأي مما يلي؟",options:[["Open all ports so services can connect freely","فتح كل المنافذ لتتصل الخدمات بحرية"],["Keep default accounts active for convenience","إبقاء الحسابات الافتراضية نشطة للراحة"],["Disable unnecessary services and close unused ports","تعطيل الخدمات غير الضرورية وإغلاق المنافذ غير المستخدمة"],["Skip password policy configuration until later","تأجيل إعداد سياسة كلمات المرور"]],answer:2,why:"Secure Defaults means starting from the safest possible baseline, not the most convenient one.",whyAr:"الأمان الافتراضي يعني البدء من أكثر الأساسيات أماناً، لا من أكثرها راحة."},
+{lecture:1,q:"Which statement correctly describes Kernel Mode?",qa:"أي عبارة تصف وضع النواة (Kernel Mode) بشكل صحيح؟",options:[["It is where web browsers and media players normally run","هنا تعمل متصفحات الويب ومشغلات الوسائط عادةً"],["It has complete access to hardware and memory, and an error here can crash the system","لديه وصول كامل إلى الأجهزة والذاكرة، وخطأ فيه قد يُسقط النظام"],["It must request hardware access through system calls","يجب أن يطلب الوصول إلى الأجهزة عبر استدعاءات النظام"],["It has no access to device drivers","لا يملك وصولاً إلى برامج تشغيل الأجهزة"]],answer:1,why:"Options a and c describe User Mode; Kernel Mode is the opposite — it accesses hardware directly.",whyAr:"الخياران أ و ج يصفان وضع المستخدم؛ أما وضع النواة فيعاكسهما — فهو يصل إلى الأجهزة مباشرةً."},
+{lecture:1,q:"Why does an application need a 'system call' to save a file to disk?",qa:"لماذا يحتاج التطبيق إلى «استدعاء نظام» لحفظ ملف على القرص؟",options:[["Because applications are not allowed to use memory","لأن التطبيقات غير مسموح لها استخدام الذاكرة"],["Because user-mode applications cannot interact with hardware directly","لأن تطبيقات وضع المستخدم لا يمكنها التفاعل مع الأجهزة مباشرةً"],["Because system calls make the file save faster","لأن استدعاءات النظام تجعل الحفظ أسرع"],["Because only biometric devices require system calls","لأن الأجهزة الحيوية فقط تحتاج استدعاءات النظام"]],answer:1,why:"System calls are the gatekeeper that lets user-mode apps reach kernel-controlled hardware safely.",whyAr:"استدعاءات النظام هي البوابة التي تسمح لتطبيقات وضع المستخدم بالوصول بأمان إلى الأجهزة التي تتحكم بها النواة."},
+{lecture:1,q:"A login requires a password AND a one-time code sent to the user's phone. This is an example of:",qa:"تسجيل الدخول يتطلب كلمة مرور ورمزاً لمرة واحدة يُرسل إلى هاتف المستخدم. هذا مثال على:",options:[["Secure Defaults","الإعدادات الآمنة افتراضياً"],["A single authentication factor","عامل مصادقة واحد"],["Multi-Factor Authentication (something you know + something you have)","المصادقة متعددة العوامل (شيء تعرفه + شيء تملكه)"],["Role-Based Access Control","التحكم بالوصول القائم على الأدوار"]],answer:2,why:"MFA combines two or more factor types — here, a password and a phone code.",whyAr:"المصادقة متعددة العوامل تجمع نوعين أو أكثر — هنا كلمة المرور ورمز الهاتف."},
+{lecture:1,q:"Which of these is a typical password policy mentioned in the lecture?",qa:"أي مما يلي سياسة كلمات مرور نموذجية ذُكرت في المحاضرة؟",options:[["No minimum length requirement","عدم وجود حد أدنى لطول كلمة المرور"],["Account lockout after repeated failed login attempts","قفل الحساب بعد محاولات دخول فاشلة متكررة"],["Passwords that never expire","كلمات مرور لا تنتهي صلاحيتها"],["Allowing unlimited login attempts for convenience","السماح بمحاولات دخول غير محدودة للراحة"]],answer:1,why:"Lockout after failed attempts is one of the stated policies, along with length, complexity, and expiration.",whyAr:"قفل الحساب بعد المحاولات الفاشلة إحدى السياسات المذكورة، إلى جانب الطول والتعقيد وانتهاء الصلاحية."},
+{lecture:1,q:"What is the main purpose of Account Management?",qa:"ما الهدف الرئيسي من إدارة الحسابات؟",options:[["To design the company firewall","تصميم جدار حماية الشركة"],["To ensure each user has the right level of access and remove inactive/dangerous accounts","ضمان حصول كل مستخدم على مستوى الوصول المناسب وإزالة الحسابات غير النشطة أو الخطرة"],["To encrypt all files on the server","تشفير جميع الملفات على الخادم"],["To write antivirus signatures","كتابة توقيعات مكافحة الفيروسات"]],answer:1,why:"Account management controls who has access and cleans up accounts that no longer need it.",whyAr:"إدارة الحسابات تتحكم في من يملك الوصول وتنظّف الحسابات التي لم تعد تحتاجه."},
+{lecture:2,q:"Which of these is NOT one of the three security goals that Access Control supports?",qa:"أي مما يلي ليس أحد أهداف الأمان الثلاثة التي يدعمها التحكم بالوصول؟",options:[["Confidentiality","السرية"],["Integrity","السلامة"],["Availability","التوافر"],["Accountability","المساءلة"]],answer:3,why:"The three goals are Confidentiality, Integrity, and Availability (CIA) — Accountability is not one of them in this lecture.",whyAr:"الأهداف الثلاثة هي السرية والسلامة والتوافر (CIA) — والمساءلة ليست منها في هذه المحاضرة."},
+{lecture:2,q:"Bob's process tries to open database.db to write new records. What is \"Bob's process\" in access-control terms?",qa:"تحاول عملية بوب فتح database.db لكتابة سجلات جديدة. ما هي «عملية بوب» وفق مصطلحات التحكم بالوصول؟",options:[["The Subject","الكيان الفاعل (Subject)"],["The Object","الكيان المفعول (Object)"],["The Permission","الإذن (Permission)"],["The Reference Monitor","مراقب المرجع"]],answer:0,why:"The Subject is the active entity requesting access; database.db is the Object, and Write is the Permission.",whyAr:"الكيان الفاعل هو الذي يطلب الوصول؛ أما database.db فهو الهدف، و«الكتابة» هي الإذن."},
+{lecture:2,q:"Which letter/permission allows a subject to run a program?",qa:"أي حرف/إذن يسمح للكيان الفاعل بتشغيل برنامج؟",options:[["R — Read","R — القراءة"],["W — Write","W — الكتابة"],["X — Execute","X — التنفيذ"],["D — Delete","D — الحذف"]],answer:2,why:"X stands for Execute: the right to run a program or file.",whyAr:"X تعني Execute: أي الحق في تشغيل برنامج أو ملف."},
+{lecture:2,q:"Which of the following is NOT a stated responsibility of the Reference Monitor?",qa:"أي مما يلي ليس من مسؤوليات مراقب المرجع المذكورة؟",options:[["Authenticate the subject","مصادقة الكيان الفاعل"],["Check permissions","التحقق من الصلاحيات"],["Write new antivirus signatures","كتابة توقيعات مكافحة فيروس جديدة"],["Record security events (auditing)","تسجيل الأحداث الأمنية (التدقيق)"]],answer:2,why:"The reference monitor authenticates, checks permissions, and audits events — it does not write antivirus signatures.",whyAr:"مراقب المرجع يصادق ويتحقق من الصلاحيات ويسجّل الأحداث — لكنه لا يكتب توقيعات مكافحة الفيروسات."},
+{lecture:2,q:'"File A: Alice (Read/Write), Bob (Read), Admin (Full Access)" is an example of a column of the access control matrix, stored per object. This is:',qa:"«الملف أ: أليس (قراءة/كتابة)، بوب (قراءة)، المدير (وصول كامل)» مثال لعمود في مصفوفة التحكم بالوصول يُخزّن لكل هدف. هذا هو:",options:[["An Access Control List (ACL)","قائمة التحكم بالوصول (ACL)"],["A Capability List","قائمة القدرات"],["A Reference Monitor","مراقب المرجع"],["An ABAC policy","سياسة ABAC"]],answer:0,why:"ACLs are stored per object (a column); Capability Lists are stored per subject (a row).",whyAr:"قوائم التحكم بالوصول تُخزّن لكل هدف (عمود)، بينما قوائم القدرات تُخزّن لكل كيان فاعل (صف)."},
+{lecture:2,q:"In Discretionary Access Control (DAC), who decides access permissions?",qa:"في التحكم التقديري بالوصول (DAC)، من يحدد صلاحيات الوصول؟",options:[["The resource's owner","مالك المورد"],["The system, using clearance labels","النظام، باستخدام تصنيفات التصريح"],["A policy engine evaluating attributes","محرك سياسات يقيم السمات"],["The role assigned to the user","الدور المُسند إلى المستخدم"]],answer:0,why:"That's the defining feature of DAC — compare to MAC (system decides), RBAC (roles), and ABAC (policy engine).",whyAr:"هذه هي السمة المميزة لـ DAC — قارنها بـ MAC (النظام يقرر) و RBAC (الأدوار) و ABAC (محرك السياسات)."},
+{lecture:2,q:'Under MAC, a user with "Confidential" clearance tries to open a document classified "Secret." What happens?',qa:"في التحكم الإلزامي (MAC)، يحاول مستخدم بتصريح «سري» (Confidential) فتح مستند مصنّف «سري للغاية» (Secret). ماذا يحدث؟",options:[["Access is allowed because Confidential is close to Secret","يُسمح بالوصول لأن «سري» قريب من «سري للغاية»"],["Access is denied because the user's clearance is lower than the document's classification","يُرفض الوصول لأن تصريح المستخدم أقل من تصنيف المستند"],["Access is allowed only if the document owner approves","يُسمح فقط إذا وافق مالك المستند"],["Access depends on the user's department","الوصول يعتمد على قسم المستخدم"]],answer:1,why:"The MAC rule requires clearance ≥ classification. Confidential < Secret, so access is denied.",whyAr:"قاعدة MAC تشترط أن يكون التصريح ≥ التصنيف؛ و«سري» < «سري للغاية»، لذا يُرفض الوصول."},
+{lecture:2,q:'In a hospital system, Alice (a Doctor) can access patient records because the permission is tied to the "Doctor" role, not to Alice personally. This is:',qa:"في نظام مستشفى، تستطيع أليس (طبيبة) الوصول إلى سجلات المرضى لأن الإذن مرتبط بدور «طبيب» لا بأليس شخصياً. هذا هو:",options:[["DAC","التحكم التقديري DAC"],["MAC","التحكم الإلزامي MAC"],["RBAC","التحكم بالأدوار RBAC"],["ABAC","التحكم بالسمات ABAC"]],answer:2,why:"Permissions tied to a role instead of a personal identity is the core of RBAC.",whyAr:"ارتباط الصلاحيات بالدور بدل هوية المستخدم هو جوهر نموذج RBAC."},
+{lecture:2,q:'A policy allows access only if "the user is an employee, connecting from the company network, during working hours." Which model is this?',qa:"تسمح سياسة بالوصول فقط إذا كان «المستخدم موظفاً، ويتصل من شبكة الشركة، خلال ساعات العمل». أي نموذج هذا؟",options:[["DAC","التحكم التقديري DAC"],["MAC","التحكم الإلزامي MAC"],["RBAC","التحكم بالأدوار RBAC"],["ABAC","التحكم بالسمات ABAC"]],answer:3,why:"The decision depends on multiple attributes (role, network, time) evaluated by a policy engine — the definition of ABAC.",whyAr:"القرار يعتمد على سمات متعددة (الدور، الشبكة، الوقت) يقيمها محرك سياسات — وهذا تعريف ABAC."},
+{lecture:2,q:"Which access control model is most widely used in standard Windows and Linux file permissions?",qa:"أي نموذج تحكم بالوصول هو الأكثر استخداماً في صلاحيات الملفات القياسية في Windows و Linux؟",options:[["DAC","التحكم التقديري DAC"],["MAC","التحكم الإلزامي MAC"],["RBAC","التحكم بالأدوار RBAC"],["ABAC","التحكم بالسمات ABAC"]],answer:0,why:"Standard file owners in Windows and Linux decide who can read, write, or execute — that is DAC.",whyAr:"مالك الملف في Windows و Linux يقرر من يمكنه القراءة أو الكتابة أو التنفيذ — وهذا هو DAC."},
+{lecture:2,q:'Which model\'s main weakness is listed as "difficult administration; less flexible"?',qa:"أي نموذج يُذكر أن أبرز عيوبه «صعوبة الإدارة؛ مرونة أقل»؟",options:[["DAC","التحكم التقديري DAC"],["MAC","التحكم الإلزامي MAC"],["RBAC","التحكم بالأدوار RBAC"],["ABAC","التحكم بالسمات ABAC"]],answer:1,why:"MAC's strict centralized labels make it harder to administer and less flexible.",whyAr:"التصنيفات المركزية الصارمة في MAC تجعل إدارتها أصعب وأقل مرونة."},
+{lecture:3,q:"Which malware type spreads automatically across a network without needing a host file or user interaction?",qa:"أي نوع برمجيات خبيثة ينتشر تلقائياً عبر الشبكة دون الحاجة إلى ملف مضيف أو تدخل المستخدم؟",options:[["Virus","الفيروس"],["Worm","الدودة"],["Trojan Horse","حصان طروادة"],["Ransomware","برمجية الفدية"]],answer:1,why:"A worm is self-replicating and spreads over networks on its own.",whyAr:"الدودة تتكاثر ذاتياً وتنتشر عبر الشبكة من دون تدخل المستخدم."},
+{lecture:3,q:"A program disguises itself as a useful utility, but secretly opens a backdoor for the attacker. This is a:",qa:"برنامج يتخفى في صورة أداة مفيدة، لكنه يفتح سراً باباً خلفياً للمهاجم. هذا هو:",options:[["Worm","الدودة"],["Trojan Horse","حصان طروادة"],["Virus","الفيروس"],["Phishing email","رسالة تصيد"]],answer:1,why:"A Trojan hides its malicious purpose behind a legitimate-looking program.",whyAr:"حصان طروادة يخفي هدفه الخبيث خلف برنامج يبدو شرعياً."},
+{lecture:3,q:'An employee receives an email claiming to be from "IT Support" asking them to confirm their password. This is an example of:',qa:"يتلقى موظف رسالة بريد إلكتروني تدّعي أنها من «دعم تقنية المعلومات» وتطلب تأكيد كلمة المرور. هذا مثال على:",options:[["Privilege escalation","تصعيد الصلاحيات"],["Social engineering (phishing)","الهندسة الاجتماعية (التصيد)"],["A misconfiguration threat","تهديد سوء التهيئة"],["An unpatched vulnerability","ثغرة غير مُرقّعة"]],answer:1,why:"Phishing tricks people into revealing credentials — a form of social engineering.",whyAr:"التصيد يخدع المستخدم لكشف بياناته — وهو شكل من أشكال الهندسة الاجتماعية."},
+{lecture:3,q:"Attackers repeatedly try every possible password combination against an account with a weak password. This is a:",qa:"يكرر المهاجمون تجربة كل تركيبات كلمات المرور الممكنة ضد حساب بكلمة مرور ضعيفة. هذا هو:",options:[["Brute-force attack","هجوم القوة الغاشمة"],["Privilege escalation attack","هجوم تصعيد الصلاحيات"],["Social engineering attack","هجوم هندسة اجتماعية"],["Insider threat","تهديد داخلي"]],answer:0,why:"Trying all possible combinations systematically is a brute-force attack.",whyAr:"تجربة كل التركيبات الممكنة بشكل منظّم هو هجوم القوة الغاشمة."},
+{lecture:3,q:"A regular employee exploits a bug to gain full administrator rights on the server. This is:",qa:"يستغل موظف عادي خللاً للحصول على صلاحيات مدير كامل على الخادم. هذا هو:",options:[["Horizontal privilege escalation","تصعيد أفقي للصلاحيات"],["Vertical privilege escalation","تصعيد رأسي للصلاحيات"],["Social engineering","الهندسة الاجتماعية"],["Defense in Depth","الدفاع المتدرج"]],answer:1,why:"Gaining a higher privilege level (user → admin) is vertical escalation; accessing another user's data at the same level is horizontal.",whyAr:"الحصول على مستوى صلاحية أعلى (مستخدم → مدير) تصعيد رأسي، أما الوصول إلى بيانات مستخدم آخر في نفس المستوى فهو تصعيد أفقي."},
+{lecture:3,q:"Why are unpatched vulnerabilities dangerous?",qa:"لماذا الثغرات غير المُرقّعة خطيرة؟",options:[["They make the OS run faster","تجعل نظام التشغيل أسرع"],["Hackers can exploit known bugs, and malware enters more easily","يمكن للمهاجمين استغلال العيوب المعروفة، وتدخل البرمجيات الخبيثة بسهولة أكبر"],["They automatically enable MFA","تُفعّل المصادقة متعددة العوامل تلقائياً"],["They only affect biometric sensors","تؤثر فقط على مستشعرات القياس الحيوي"]],answer:1,why:"Known unpatched bugs are exactly what attackers and malware look for.",whyAr:"العيوب المعروفة غير المرقّعة هي بالضبط ما يبحث عنه المهاجمون والبرمجيات الخبيثة."},
+{lecture:3,q:"Which of the following is an example of a Misconfiguration Threat?",qa:"أي مما يلي مثال على تهديد سوء التهيئة؟",options:[["A strong, unique password policy","سياسة كلمات مرور قوية وفريدة"],["A firewall left disabled after installation","جدار حماية تُرك معطّلاً بعد التثبيت"],["Regular software patching","الترقيع الدوري للبرمجيات"],["Logging and access monitoring","تسجيل السجلات ومراقبة الوصول"]],answer:1,why:"Leaving a firewall disabled is a configuration mistake that creates an open door.",whyAr:"ترك جدار الحماية معطّلاً خطأ في التهيئة يفتح الباب أمام المهاجمين."},
+{lecture:3,q:"An employee intentionally deletes company files before resigning. This is best classified as:",qa:"يحذف موظف ملفات الشركة عمداً قبل استقالته. يُصنَّف هذا بشكل أفضل على أنه:",options:[["A worm attack","هجوم دودة"],["A misconfiguration threat","تهديد سوء تهيئة"],["An insider threat","تهديد داخلي"],["Social engineering","الهندسة الاجتماعية"]],answer:2,why:"A trusted insider causing harm deliberately is an insider threat.",whyAr:"قيام مستخدم موثوق داخل المؤسسة بإيذاء النظام عمداً هو تهديد داخلي."},
+{lecture:3,q:"Which malware type specifically encrypts the victim's files and demands payment to restore them?",qa:"أي نوع برمجيات خبيثة يشفّر ملفات الضحية تحديداً ويطلب فدية لاستعادتها؟",options:[["Worm","الدودة"],["Trojan Horse","حصان طروادة"],["Ransomware","برمجية الفدية"],["Virus","الفيروس"]],answer:2,why:"Ransomware encrypts files and demands a ransom for the decryption key.",whyAr:"برمجية الفدية تشفّر الملفات وتطلب فدية مقابل مفتاح فك التشفير."},
+{lecture:1,q:"What is the main goal of authentication?",qa:"ما الهدف الرئيسي من المصادقة؟",options:[["To verify the identity of the user","التحقق من هوية المستخدم"],["To encrypt all stored files","تشفير جميع الملفات المخزنة"],["To install software updates","تثبيت تحديثات البرمجيات"],["To assign file permissions","إسناد صلاحيات الملفات"]],answer:0,why:"Authentication verifies who the user is before access is granted.",whyAr:"المصادقة تتحقق من هوية المستخدم قبل منح الوصول."},
+{lecture:1,q:'Which of these is an example of "something you are" in MFA?',qa:"أي مما يلي مثال على «شيء أنت عليه» في المصادقة متعددة العوامل؟",options:[["Password","كلمة المرور"],["Phone code","رمز الهاتف"],["Fingerprint","بصمة الإصبع"],["Smart card","البطاقة الذكية"]],answer:2,why:'Biometrics such as fingerprints are "something you are"; passwords are "something you know" and cards or codes are "something you have".',whyAr:"القياسات الحيوية مثل البصمة هي «شيء أنت عليه»؛ وكلمة المرور «شيء تعرفه»، والبطاقة أو الرمز «شيء تملكه»."},
+{lecture:1,q:"Which authentication method uses a physical device to confirm identity?",qa:"أي طريقة مصادقة تستخدم جهازاً مادياً لتأكيد الهوية؟",options:[["Biometrics","القياسات الحيوية"],["Tokens and smart cards","الرموز والبطاقات الذكية"],["Passwords","كلمات المرور"],["Biometric iris scanning","مسح القزحية"]],answer:1,why:"Tokens and smart cards are physical devices often used in corporate or government environments.",whyAr:"الرموز والبطاقات الذكية أجهزة مادية تُستخدم غالباً في البيئات المؤسسية والحكومية."},
+{lecture:1,q:"What is a direct benefit of Least Privilege?",qa:"ما الفائدة المباشرة لمبدأ أقل الصلاحيات؟",options:[["It lets every user become admin","السماح لكل مستخدم بأن يصبح مديراً"],["It limits malware spread and user mistakes","يحدّ من انتشار البرمجيات الخبيثة وأخطاء المستخدمين"],["It removes all passwords","إزالة جميع كلمات المرور"],["It opens unused ports","فتح المنافذ غير المستخدمة"]],answer:1,why:"Minimum permissions contain damage from user mistakes and limit how far malware can spread.",whyAr:"أقل الصلاحيات يحصر الضرر الناتج عن أخطاء المستخدمين ويحدّ من انتشار البرمجيات الخبيثة."},
+{lecture:1,q:"If one defense layer fails, what does Defense in Depth rely on?",qa:"إذا فشلت طبقة دفاع واحدة، على ماذا يعتمد الدفاع المتدرج؟",options:[["Removing all other layers","إزالة كل الطبقات الأخرى"],["Other layers remaining active","بقاء الطبقات الأخرى نشطة"],["Restarting the OS","إعادة تشغيل نظام التشغيل"],["Disabling authentication","تعطيل المصادقة"]],answer:1,why:"Multiple barriers remain active so one failure does not expose the data.",whyAr:"تظل حواجز متعددة نشطة حتى لا يؤدي فشل واحد إلى كشف البيانات."},
+{lecture:1,q:"Which of these is NOT part of a secure fresh OS baseline?",qa:"أي مما يلي ليس جزءاً من أساس نظام تشغيل جديد وآمن؟",options:[["Removing or locking default accounts","إزالة الحسابات الافتراضية أو قفلها"],["Including basic firewall rules","تضمين قواعد جدار حماية أساسية"],["Keeping all default accounts active","إبقاء جميع الحسابات الافتراضية نشطة"],["Using recommended password policies","استخدام سياسات كلمات مرور موصى بها"]],answer:2,why:"Secure defaults remove or lock default accounts rather than keeping them active.",whyAr:"الأمان الافتراضي يزيل الحسابات الافتراضية أو يقفلها بدل إبقائها نشطة."},
+{lecture:1,q:"Which of these runs in User Mode?",qa:"أي مما يلي يعمل في وضع المستخدم؟",options:[["Device drivers","برامج تشغيل الأجهزة"],["Memory management","إدارة الذاكرة"],["A web browser","متصفح الويب"],["Kernel scheduling","جدولة النواة"]],answer:2,why:"Regular applications such as browsers, Word, and media players run in User Mode.",whyAr:"التطبيقات العادية مثل المتصفحات وWord ومشغلات الوسائط تعمل في وضع المستخدم."},
+{lecture:1,q:"What can happen when an error occurs in Kernel Mode?",qa:"ماذا يمكن أن يحدث عند خطأ في وضع النواة؟",options:[["Nothing at all","لا شيء إطلاقاً"],["Only one app crashes","يتعطل تطبيق واحد فقط"],["The whole system can crash","قد يتعطل النظام بالكامل"],["The OS becomes faster","يصبح النظام أسرع"]],answer:2,why:"Because kernel mode has full access to hardware and memory, an error there can crash the entire system.",whyAr:"لأن وضع النواة يملك وصولاً كاملاً إلى الأجهزة والذاكرة، فإن الخطأ فيه قد يُسقط النظام بالكامل."},
+{lecture:1,q:"What is the recommended minimum password length range in the lecture?",qa:"ما المدى الموصى به لحد أدنى لطول كلمة المرور في المحاضرة؟",options:[["3 to 5 characters","من 3 إلى 5 أحرف"],["8 to 14 characters","من 8 إلى 14 حرفاً"],["20 to 30 characters","من 20 إلى 30 حرفاً"],["No minimum at all","لا يوجد حد أدنى"]],answer:1,why:"The lecture lists a minimum length of 8 to 14 characters along with complexity and expiration.",whyAr:"تذكر المحاضرة حداً أدنى من 8 إلى 14 حرفاً إلى جانب التعقيد وانتهاء الصلاحية."},
+{lecture:1,q:"Which password practice increases risk the most?",qa:"أي ممارسة تتعلق بكلمات المرور تزيد الخطر أكثر من غيرها؟",options:[["Using strong unique passwords","استخدام كلمات مرور قوية وفريدة"],["Using simple passwords","استخدام كلمات مرور بسيطة"],["Changing passwords periodically","تغيير كلمات المرور دورياً"],["Locking accounts after failures","قفل الحسابات بعد المحاولات الفاشلة"]],answer:1,why:"Weak or simple passwords are vulnerable to brute-force and dictionary attacks.",whyAr:"كلمات المرور البسيطة أو الضعيفة عرضة لهجمات القوة الغاشمة وهجمات القاموس."},
+{lecture:2,q:"What does access control regulate?",qa:"ماذا ينظّم التحكم بالوصول؟",options:[["Who can access resources and what operations they can perform","من يمكنه الوصول إلى الموارد وما العمليات التي يستطيع تنفيذها"],["Only antivirus updates","تحديثات مكافحة الفيروسات فقط"],["Only password length","طول كلمة المرور فقط"],["Network cable types","أنواع كابلات الشبكة"]],answer:0,why:"Access control decides whether each request to open a file, run a program, or reach a device is allowed.",whyAr:"التحكم بالوصول يقرر السماح أو الرفض لكل طلب فتح ملف أو تشغيل برنامج أو الوصول إلى جهاز."},
+{lecture:2,q:"Which security goal prevents unauthorized modification of information?",qa:"أي هدف أمني يمنع التعديل غير المصرح به للمعلومات؟",options:[["Confidentiality","السرية"],["Integrity","السلامة"],["Availability","التوافر"],["Accountability","المساءلة"]],answer:1,why:"Integrity prevents unauthorized modification; confidentiality prevents disclosure, and availability keeps resources accessible.",whyAr:"السلامة تمنع التعديل غير المصرح، والسرية تمنع الإفشاء، والتوافر يُبقي الموارد متاحة."},
+{lecture:2,q:"Which security goal keeps resources accessible to authorized users?",qa:"أي هدف أمني يُبقي الموارد متاحة للمستخدمين المصرح لهم؟",options:[["Confidentiality","السرية"],["Integrity","السلامة"],["Availability","التوافر"],["Auditing","التدقيق"]],answer:2,why:"Availability means resources remain accessible to authorized users.",whyAr:"التوافر يعني بقاء الموارد متاحة للمستخدمين المصرح لهم."},
+{lecture:2,q:'In "Alice opens report.txt to read it", what is report.txt?',qa:"في «أليس تفتح report.txt لتقرأه»، ما هو report.txt؟",options:[["The Subject","الكيان الفاعل"],["The Object","الكيان المفعول (الهدف)"],["The Permission","الإذن"],["The Policy","السياسة"]],answer:1,why:"The file being accessed is the object; Alice's process is the subject and Read is the permission.",whyAr:"الملف الذي يتم الوصول إليه هو الهدف؛ وعملية أليس هي الكيان الفاعل و«القراءة» هي الإذن."},
+{lecture:2,q:"Which permission allows removing data?",qa:"أي إذن يسمح بإزالة البيانات؟",options:[["R — Read","R — القراءة"],["W — Write","W — الكتابة"],["X — Execute","X — التنفيذ"],["D — Delete","D — الحذف"]],answer:3,why:"D stands for Delete: the right to remove data.",whyAr:"D تعني Delete: أي الحق في حذف البيانات."},
+{lecture:2,q:"Where is the security policy enforced in the general access control model?",qa:"أين تُطبَّق سياسة الأمان في نموذج التحكم العام؟",options:[["In the user's browser","في متصفح المستخدم"],["At the reference monitor","في مراقب المرجع"],["In the antivirus software","في برنامج مكافحة الفيروسات"],["In the file name","في اسم الملف"]],answer:1,why:"Every request passes through the reference monitor, the single place where policy is enforced.",whyAr:"كل طلب يمر عبر مراقب المرجع، فهو المكان الوحيد الذي تُطبَّق فيه السياسة."},
+{lecture:2,q:"Which is a responsibility of the reference monitor?",qa:"أي مما يلي من مسؤوليات مراقب المرجع؟",options:[["Allow or deny access","السماح بالوصول أو رفضه"],["Designing the interface","تصميم الواجهة"],["Writing updates","كتابة التحديثات"],["Replacing hardware","استبدال الأجهزة"]],answer:0,why:"It authenticates, checks permissions, allows or denies access, and records events.",whyAr:"يصادق ويتحقق من الصلاحيات ويسمح أو يرفض الوصول ويسجّل الأحداث."},
+{lecture:2,q:"In an access control matrix, what do rows represent?",qa:"في مصفوفة التحكم بالوصول، ماذا تمثل الصفوف؟",options:[["Objects","الأهداف"],["Subjects","الكيانات الفاعلة"],["Permissions","الصلاحيات"],["Passwords","كلمات المرور"]],answer:1,why:"Subjects are rows, objects are columns, and each entry defines a permission.",whyAr:"الكيانات الفاعلة صفوف والأهداف أعمدة، وكل خلية تحدد إذناً."},
+{lecture:2,q:"What does a capability list store?",qa:"ماذا تخزّن قائمة القدرات؟",options:[["A list of subjects per object","قائمة بالكيانات الفاعلة لكل هدف"],["A list of objects per subject","قائمة بالأهداف لكل كيان فاعل"],["Only passwords","كلمات المرور فقط"],["Antivirus signatures","توقيعات مكافحة الفيروسات"]],answer:1,why:"A capability list is a row of the matrix: each subject stores the objects it may access.",whyAr:"قائمة القدرات هي صف من المصفوفة: يخزّن كل كيان فاعل الأهداف التي يمكنه الوصول إليها."},
+{lecture:2,q:"Alice owns a document and grants Bob read-only access. Which model is this?",qa:"أليس تملك مستنداً وتمنح بوب صلاحية قراءة فقط. أي نموذج هذا؟",options:[["DAC","التحكم التقديري DAC"],["MAC","التحكم الإلزامي MAC"],["RBAC","التحكم بالأدوار RBAC"],["ABAC","التحكم بالسمات ABAC"]],answer:0,why:"In DAC, the owner decides who can access a resource and with which permissions.",whyAr:"في DAC يقرر مالك المورد من يمكنه الوصول وبأي صلاحية."},
+{lecture:2,q:"What is a listed disadvantage of DAC?",qa:"ما العيب المذكور لنموذج DAC؟",options:[["Difficult administration","صعوبة الإدارة"],["Users may give excessive permissions","قد يمنح المستخدمون صلاحيات مفرطة"],["It uses labels and clearance","يستخدم تصنيفات وتصاريح"],["It requires a policy engine","يتطلب محرك سياسات"]],answer:1,why:"DAC is flexible and easy to use, but users may grant excessive permissions, lowering security.",whyAr:"DAC مرن وسهل الاستخدام، لكن المستخدمين قد يمنحون صلاحيات مفرطة مما يخفض الأمان."},
+{lecture:2,q:"Under MAC, can users change permissions themselves?",qa:"في MAC، هل يمكن للمستخدمين تغيير الصلاحيات بأنفسهم؟",options:[["Yes, always","نعم، دائماً"],["No, the system decides using labels","لا، النظام يقرر باستخدام التصنيفات"],["Only on weekends","فقط في نهاية الأسبوع"],["Only the object owner can","فقط مالك الهدف"]],answer:1,why:"MAC decisions are controlled by the system based on labels; users cannot change permissions.",whyAr:"قرارات MAC يتحكم بها النظام بناءً على التصنيفات، ولا يستطيع المستخدمون تغيير الصلاحيات."},
+{lecture:2,q:"A user with Confidential clearance tries to open a Public document. What happens?",qa:"مستخدم بتصريح «سري» يحاول فتح مستند «عام». ماذا يحدث؟",options:[["Access is denied","يُرفض الوصول"],["Access is allowed because clearance is greater than or equal to classification","يُسمح بالوصول لأن التصريح أكبر من أو يساوي التصنيف"],["Access is allowed only after an audit","يُسمح فقط بعد التدقيق"],["Access depends on the user's role","الوصول يعتمد على دور المستخدم"]],answer:1,why:"MAC allows access when the user's clearance is greater than or equal to the object's classification.",whyAr:"يسمح MAC بالوصول عندما يكون تصريح المستخدم أكبر من أو يساوي تصنيف الهدف."},
+{lecture:2,q:"Which is a disadvantage of RBAC?",qa:"أي مما يلي عيب في RBAC؟",options:[["Requires proper role design and can become complex","يتطلب تصميماً جيداً للأدوار وقد يصبح معقداً"],["Very difficult to configure","يصعب تهيئته جداً"],["Has a lower security level","مستوى أمانه أقل"],["Needs no role design","لا يحتاج تصميم أدوار"]],answer:0,why:"RBAC is easy to administer and suits large organizations, but needs proper role design and can grow complex.",whyAr:"RBAC سهل الإدارة ومناسب للمؤسسات الكبيرة، لكنه يحتاج تصميماً دقيقاً للأدوار وقد يصبح معقداً."},
+{lecture:2,q:"Which attributes does ABAC evaluate?",qa:"أي سمات يقيمها ABAC؟",options:[["Only passwords","كلمات المرور فقط"],["User, resource, and environment attributes","سمات المستخدم والمورد والبيئة"],["Only file names","أسماء الملفات فقط"],["Only user roles","أدوار المستخدم فقط"]],answer:1,why:"A policy engine evaluates user, resource, and environment attributes against the policy.",whyAr:"يقيم محرك السياسات سمات المستخدم والمورد والبيئة مقابل السياسة."},
+{lecture:2,q:"Which is a disadvantage of ABAC?",qa:"أي مما يلي عيب في ABAC؟",options:[["Its rules are inflexible","قواعده غير مرنة"],["It is more difficult to configure","يصعب تهيئته أكثر"],["It cannot use policies","لا يستخدم سياسات"],["It only works in hospitals","يعمل في المستشفيات فقط"]],answer:1,why:"ABAC is highly flexible and supports complex rules, but it is more difficult to configure.",whyAr:"ABAC مرن جداً ويدعم قواعد معقدة، لكن تهيئته أصعب."},
+{lecture:3,q:"What is malware?",qa:"ما المقصود بالبرمجيات الخبيثة (malware)؟",options:[["Software written to damage a system or steal information","برمجيات كُتبت لإتلاف نظام أو سرقة معلومات"],["Only antivirus software","برامج مكافحة الفيروسات فقط"],["A firewall rule","قاعدة جدار حماية"],["A password policy","سياسة كلمات مرور"]],answer:0,why:"Malware is any software designed to harm a system or steal data.",whyAr:"البرمجيات الخبيثة هي أي برنامج صُمم لإيذاء النظام أو سرقة البيانات."},
+{lecture:3,q:"Which malware attaches itself to files and needs user interaction to spread?",qa:"أي برمجية خبيثة تعلق نفسها بالملفات وتحتاج تدخل المستخدم للانتشار؟",options:[["Worm","الدودة"],["Virus","الفيروس"],["Trojan Horse","حصان طروادة"],["Ransomware","برمجية الفدية"]],answer:1,why:"A virus attaches to files and needs user interaction; a worm spreads automatically.",whyAr:"الفيروس يعلق نفسه بالملفات ويحتاج تدخل المستخدم، أما الدودة فتنتشر تلقائياً."},
+{lecture:3,q:"What is the key difference between a virus and a worm?",qa:"ما الفرق الجوهري بين الفيروس والدودة؟",options:[["A virus needs a host file and user action; a worm spreads automatically","الفيروس يحتاج ملفاً مضيفاً وتدخل المستخدم، والدودة تنتشر تلقائياً"],["A worm needs a host file; a virus does not","الدودة تحتاج ملفاً مضيفاً والفيروس لا"],["Both are password policies","كلاهما سياستا كلمات مرور"],["A virus only works on phones","الفيروس يعمل على الهواتف فقط"]],answer:0,why:"Host file plus user action for a virus; automatic network spreading for a worm.",whyAr:"الفيروس: ملف مضيف وتدخل المستخدم؛ الدودة: انتشار تلقائي عبر الشبكة."},
+{lecture:3,q:"What does a Trojan Horse do in the background?",qa:"ماذا يفعل حصان طروادة في الخلفية؟",options:[["It patches the OS","يرقّع النظام"],["It hides harmful actions such as stealing data or creating backdoors","يخفي أفعالاً ضارة مثل سرقة البيانات أو فتح أبواب خلفية"],["It encrypts files for payment","يشفّر الملفات مقابل فدية"],["It blocks all ports","يحجب كل المنافذ"]],answer:1,why:"Trojans appear normal or useful but hide harmful actions in the background.",whyAr:"يبدو حصان طروادة طبيعياً أو مفيداً لكنه يخفي أفعالاً ضارة في الخلفية."},
+{lecture:3,q:"How does ransomware usually spread?",qa:"كيف تنتشر برمجية الفدية عادةً؟",options:[["Only through USB","عبر USB فقط"],["Often through email attachments or malicious links","غالباً عبر مرفقات البريد أو الروابط الخبيثة"],["Only through system calls","عبر استدعاءات النظام فقط"],["Only through firewall rules","عبر قواعد جدار الحماية فقط"]],answer:1,why:"Ransomware often spreads through email attachments or malicious links.",whyAr:"كثيراً ما تنتشر برمجية الفدية عبر مرفقات البريد الإلكتروني أو الروابط الخبيثة."},
+{lecture:3,q:"Why does social engineering work?",qa:"لماذا تنجح الهندسة الاجتماعية؟",options:[["Because users trust what they see","لأن المستخدمين يثقون بما يرونه"],["Because firewalls are disabled","لأن جدران الحماية معطّلة"],["Because passwords are long","لأن كلمات المرور طويلة"],["Because the OS has no kernel","لأن النظام لا يملك نواة"]],answer:0,why:"Attackers trick the user rather than attacking the system directly, relying on trust.",whyAr:"المهاجمون يخدعون المستخدم بدل مهاجمة النظام مباشرة، مستغلين ثقته بما يراه."},
+{lecture:3,q:"Which is NOT a common social engineering technique listed in the lecture?",qa:"أي مما يلي ليس تقنية شائعة للهندسة الاجتماعية ذُكرت في المحاضرة؟",options:[["Phishing emails","رسائل التصيد"],["Fake login pages","صفحات دخول مزيفة"],["Messages pretending to be IT support","رسائل تتقمص دعم تقنية المعلومات"],["Installing security patches","تثبيت تحديثات الأمان"]],answer:3,why:"Patching is a defense, not a social-engineering technique.",whyAr:"الترقيع إجراء دفاعي وليس تقنية هندسة اجتماعية."},
+{lecture:3,q:"Which attack tries every word in a list of likely passwords?",qa:"أي هجوم يجرب كل كلمة في قائمة كلمات مرور محتملة؟",options:[["Brute-force attack","هجوم القوة الغاشمة"],["Dictionary attack","هجوم القاموس"],["Phishing","التصيد"],["Insider threat","التهديد الداخلي"]],answer:1,why:"A dictionary attack uses a list of common passwords, while brute force tries all possible combinations.",whyAr:"هجوم القاموس يستخدم قائمة بكلمات مرور شائعة، بينما القوة الغاشمة تجرب كل التركيبات الممكنة."},
+{lecture:3,q:"Horizontal privilege escalation means:",qa:"التصعيد الأفقي للصلاحيات يعني:",options:[["A user becomes an administrator","يصبح المستخدم مديراً"],["A user gains another user's data at the same level","يحصل مستخدم على بيانات مستخدم آخر في نفس المستوى"],["The OS is patched","يُرقّع النظام"],["A firewall is enabled","يُفعّل جدار الحماية"]],answer:1,why:"Vertical means a higher privilege level; horizontal means another user's data at the same level.",whyAr:"الرأسي يعني مستوى صلاحية أعلى؛ والأفقي يعني بيانات مستخدم آخر في نفس المستوى."},
+{lecture:3,q:"Which is NOT a listed cause of privilege escalation?",qa:"أي مما يلي ليس سبباً مذكوراً لتصعيد الصلاحيات؟",options:[["Vulnerabilities","الثغرات"],["Misconfigured permissions","صلاحيات خاطئة التهيئة"],["Poor access control","تحكم ضعيف بالوصول"],["Regular patching","الترقيع المنتظم"]],answer:3,why:"The lecture lists vulnerabilities, misconfigured permissions, and poor access control as causes.",whyAr:"تذكر المحاضرة الثغرات والصلاحيات الخاطئة والتحكم الضعيف كأسباب، لا الترقيع."},
+{lecture:3,q:"Which is NOT an example of a misconfiguration threat?",qa:"أي مما يلي ليس مثالاً على تهديد سوء التهيئة؟",options:[["Open unnecessary ports","فتح منافذ غير ضرورية"],["Users with admin rights without need","مستخدمون بصلاحيات مدير بلا حاجة"],["Weak NTFS permissions","صلاحيات NTFS ضعيفة"],["Logging and access monitoring","تسجيل السجلات ومراقبة الوصول"]],answer:3,why:"Logging and monitoring are defenses; the other options are insecure settings.",whyAr:"التسجيل والمراقبة إجراءات دفاعية، أما الخيارات الأخرى فإعدادات غير آمنة."},
+{lecture:3,q:"Which measure helps prevent insider threats?",qa:"أي إجراء يساعد على منع التهديدات الداخلية؟",options:[["Disabling logs","تعطيل السجلات"],["Logging, access monitoring, separation of duties, and least privilege","التسجيل ومراقبة الوصول والفصل بين المهام وأقل الصلاحيات"],["Giving everyone admin rights","منح الجميع صلاحيات مدير"],["Removing all passwords","إزالة كل كلمات المرور"]],answer:1,why:"These controls detect and limit misuse by trusted users inside the organization.",whyAr:"هذه الضوابط تكشف وتحدّ من إساءة المستخدمين الموثوقين داخل المؤسسة."}
+];
+
+const lectureNames = {1:"المحاضرة 1 · الأساسيات",2:"المحاضرة 2 · التحكم بالوصول",3:"المحاضرة 3 · التهديدات"};
+const letters = ["A","B","C","D"];
+let active = [], answers = [], current = 0, seconds = 0, ticker = null, demo = false;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; }
+  return a;
+}
+function prepare(item){
+  const pairs = shuffle(item.options.map((o,i) => ({o, correct:i === item.answer})));
+  return {...item, options:pairs.map(p => p.o), answer:pairs.findIndex(p => p.correct)};
+}
+
+function showStart(){
+  clearInterval(ticker); ticker = null;
+  $("startScreen").classList.remove("hidden");
+  $("quizScreen").classList.add("hidden");
+  $("resultScreen").classList.add("hidden");
+  $("totalCount").textContent = questions.length;
+  const best = localStorage.getItem("osmcq_best");
+  $("bestLine").textContent = best ? "أفضل نتيجة لك حتى الآن: " + best + "%" : "لم تبدأ الاختبار بعد — بالتوفيق!";
+}
+
+function startQuiz(isDemo){
+  demo = isDemo;
+  const pool = shuffle(questions).map(prepare);
+  active = isDemo ? pool.slice(0,3) : pool;
+  answers = Array(active.length).fill(null);
+  current = 0; seconds = 0;
+  $("startScreen").classList.add("hidden");
+  $("resultScreen").classList.add("hidden");
+  $("quizScreen").classList.remove("hidden");
+  $("qTotal").textContent = active.length;
+  clearInterval(ticker);
+  ticker = setInterval(() => { seconds++; $("timer").textContent = fmt(seconds); }, 1000);
+  $("timer").textContent = "00:00";
+  renderQuestion();
+}
+
+function fmt(s){ return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0"); }
+
+function renderQuestion(){
+  const item = active[current];
+  $("qNum").textContent = current + 1;
+  $("lectureName").textContent = lectureNames[item.lecture];
+  $("fill").style.width = ((current+1)/active.length*100) + "%";
+  $("prevBtn").disabled = current === 0;
+  $("nextBtn").disabled = current === active.length - 1;
+  $("finishBtn").textContent = current === active.length - 1 ? "إنهاء الاختبار وعرض النتيجة" : "إنهاء الاختبار وعرض النتيجة";
+
+  let html = '<span class="badge">' + esc(lectureNames[item.lecture]) + "</span>";
+  html += '<p class="q-en">' + esc(item.q) + "</p>";
+  html += '<p class="q-ar"><span class="tag">الترجمة</span>' + esc(item.qa) + "</p>";
+  html += '<div class="options">';
+  item.options.forEach((o,i) => {
+    const sel = answers[current] === i ? " selected" : "";
+    html += '<button class="opt' + sel + '" onclick="answer(' + i + ')">'
+      + '<span class="letter">' + letters[i] + "</span>"
+      + '<span class="txt"><span class="en">' + esc(o[0]) + "</span>"
+      + '<span class="ar">' + esc(o[1]) + "</span></span></button>";
+  });
+  html += "</div>";
+  $("questionCard").innerHTML = html;
+
+  $("qGrid").innerHTML = active.map((_,i) => {
+    const cls = (i === current ? "current" : (answers[i] !== null ? "answered" : ""));
+    return '<button class="' + cls + '" onclick="jump(' + i + ')">' + (i+1) + "</button>";
+  }).join("");
+}
+
+function answer(i){ answers[current] = i; renderQuestion(); }
+function jump(i){ current = i; renderQuestion(); }
+function move(d){ const n = current + d; if(n >= 0 && n < active.length){ current = n; renderQuestion(); } }
+
+function quitQuiz(){ clearInterval(ticker); ticker = null; showStart(); }
+
+function finishQuiz(){
+  clearInterval(ticker); ticker = null;
+  const score = active.reduce((acc,a,i) => acc + (answers[i] === a.answer ? 1 : 0), 0);
+  const pct = Math.round(score / active.length * 100);
+  const key = demo ? "osmcq_best_demo" : "osmcq_best";
+  const prev = parseInt(localStorage.getItem(key) || "0", 10);
+  if(pct > prev) localStorage.setItem(key, String(pct));
+
+  $("circle").style.background = "conic-gradient(var(--accent) " + (pct*3.6) + "deg, rgba(255,255,255,.08) " + (pct*3.6) + "deg)";
+  $("scoreNum").textContent = pct + "%";
+  $("correctCount").textContent = score;
+  $("wrongCount").textContent = active.length - score;
+  const best = Math.max(prev,pct);
+  $("bestScore").textContent = best + "%";
+
+  let msg, hint;
+  if(pct === 100){ msg = "ممتاز! إجابات كلها صحيحة 🎯"; hint = "أنت جاهز للاختبار النهائي."; }
+  else if(pct >= 80){ msg = "عمل رائع! نتيجة قوية جداً"; hint = "راجع الأسئلة الخاطئة أدناه."; }
+  else if(pct >= 50){ msg = "جيد، لكنك تحتاج إلى مراجعة"; hint = "اقرأ الشرح العربي لكل سؤال خاطئ."; }
+  else { msg = "لا بأس — هذه مجرد تدريب"; hint = "أعد المحاولة بعد مراجعة المحاضرات."; }
+  $("resultMsg").textContent = msg;
+  $("resultHint").textContent = hint + (demo ? " (هذه كانت التجربة السريعة)" : "");
+
+  let review = "";
+  active.forEach((item,i) => {
+    const chosen = answers[i];
+    const ok = chosen === item.answer;
+    review += '<div class="rev ' + (ok ? "is-ok" : "is-no") + '"><div class="rev-head"><span>سؤال ' + (i+1) + " · " + esc(lectureNames[item.lecture]) + '</span><span class="' + (ok ? "ok" : "no") + '">' + (ok ? "✓ صحيح" : "✗ خاطئ") + "</span></div>";
+    review += '<p class="q-en">' + esc(item.q) + "</p>";
+    review += '<p class="q-ar">' + esc(item.qa) + "</p>";
+    review += '<div class="ans">إجابتك: <span>' + esc(chosen === null ? "لم تختر إجابة" : letters[chosen] + " — " + item.options[chosen][0]) + "</span><br>"
+      + "الإجابة الصحيحة: <span class=\"ok\">" + letters[item.answer] + " — " + esc(item.options[item.answer][0]) + "</span></div>";
+    review += '<div class="why">' + esc(item.whyAr) + '<span class="en">' + esc(item.why) + "</span></div></div>";
+  });
+  $("review").innerHTML = review;
+  $("quizScreen").classList.add("hidden");
+  $("resultScreen").classList.remove("hidden");
+  $("resultScreen").scrollIntoView({behavior:"smooth"});
+}
+
+document.addEventListener("keydown", e => {
+  if($("quizScreen").classList.contains("hidden")) return;
+  if(/^[1-4]$/.test(e.key)){ answer(parseInt(e.key,10)-1); }
+  else if(e.key === "ArrowLeft"){ move(-1); }
+  else if(e.key === "ArrowRight"){ move(1); }
+});
+
+showStart();
+</script>
+</body>
+</html>
